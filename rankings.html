@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Kernel Kiosk Rankings</title>
+  <style>
+    :root { color-scheme: dark; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; background: #030805; color: #d8ffe5; }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; padding: 36px 20px; background-color: #030805; background-image: linear-gradient(#0a4328 1px, transparent 1px), linear-gradient(90deg, #0a4328 1px, transparent 1px); background-size: 48px 48px; }
+    main { width: min(760px, 100%); margin: 0 auto; border: 2px solid #46ff9a; background: #08130e; padding: 28px; }
+    header { display: flex; align-items: baseline; justify-content: space-between; gap: 18px; border-bottom: 1px solid #1f9d5b; padding-bottom: 18px; }
+    h1 { margin: 0; color: #76ffad; font-size: 26px; font-weight: 700; letter-spacing: 0; }
+    a { color: #b9ffd2; font-size: 13px; }
+    #status { min-height: 42px; margin: 22px 0 12px; color: #9acbad; line-height: 1.45; }
+    #status.success { color: #76ffad; }
+    #status.error { color: #ff8394; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 13px 10px; border-bottom: 1px solid #174b2d; text-align: left; }
+    th { color: #76ffad; font-size: 12px; font-weight: 700; }
+    td:last-child, th:last-child { text-align: right; color: #f4ffb2; }
+    .empty { color: #9acbad; text-align: center; }
+    @media (max-width: 540px) { body { padding: 16px 10px; } main { padding: 20px 14px; } header { align-items: flex-start; flex-direction: column; gap: 10px; } h1 { font-size: 22px; } }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <h1>KERNEL KIOSK // RANKINGS</h1>
+      <a href="/">Return to game</a>
+    </header>
+    <p id="status">Loading public rankings...</p>
+    <table aria-label="Public score rankings">
+      <thead><tr><th>#</th><th>HANDLE</th><th>SCORE</th></tr></thead>
+      <tbody id="scores"></tbody>
+    </table>
+  </main>
+  <script>
+    const status = document.getElementById('status');
+    const rows = document.getElementById('scores');
+
+    function setStatus(text, tone = '') {
+      status.textContent = text;
+      status.className = tone;
+    }
+
+    function render(entries) {
+      rows.replaceChildren();
+      if (!entries.length) {
+        const row = document.createElement('tr');
+        const cell = document.createElement('td');
+        cell.colSpan = 3;
+        cell.className = 'empty';
+        cell.textContent = 'No published scores yet.';
+        row.append(cell);
+        rows.append(row);
+        return;
+      }
+      entries.forEach((entry, index) => {
+        const row = document.createElement('tr');
+        for (const value of [index + 1, entry.name, entry.score]) {
+          const cell = document.createElement('td');
+          cell.textContent = String(value);
+          row.append(cell);
+        }
+        rows.append(row);
+      });
+    }
+
+    async function responseJSON(response) {
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(body.error || `Request failed (${response.status})`);
+      return body;
+    }
+
+    async function loadRankings() {
+      const entries = await fetch('/api/scores', { cache: 'no-store', credentials: 'same-origin' }).then(responseJSON);
+      render(entries);
+    }
+
+    async function start() {
+      const query = new URLSearchParams(window.location.search);
+      const name = query.get('name');
+      const score = query.get('score');
+      try {
+        if (name !== null && score !== null) {
+          setStatus('Publishing score...');
+          await publish(name, score);
+          window.history.replaceState(null, '', '/rankings.html');
+          setStatus('Score published to the public rankings.', 'success');
+        }
+        await loadRankings();
+        if (name === null || score === null) setStatus('Public rankings loaded.');
+      } catch (error) {
+        setStatus(`Ranking request failed: ${error.message}`, 'error');
+        await loadRankings().catch(() => {});
+      }
+    }
+
+    async function publish(name, score) {
+      const submit = new URLSearchParams({ name, score });
+      await fetch(`/api/scores/submit?${submit}`, { method: 'GET', cache: 'no-store', credentials: 'same-origin' }).then(responseJSON);
+    }
+
+    start();
+  </script>
+</body>
+</html>
