@@ -4,8 +4,6 @@ Kernel Kiosk is a Godot 4 platformer where you play as Hackrio, a tiny terminal 
 
 ![Kernel Kiosk platformer gameplay preview](docs/kernel-kiosk-preview.png)
 
-Built for the Hack Club Stardance WarioWare mission.
-
 ## What You Do
 
 - Move with `A` / `D` or the arrow keys.
