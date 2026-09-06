@@ -1,0 +1,5 @@
+.godot/
+bin/
+data/
+web/*
+!web/.gitkeep

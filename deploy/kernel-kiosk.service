@@ -1,0 +1,18 @@
+[Unit]
+Description=Kernel Kiosk web game server
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/root/Hackclub/kernel-kiosk
+ExecStart=/root/Hackclub/kernel-kiosk/kernel-kiosk -addr 0.0.0.0:8009 -web-root web -scores data/scores.json
+Restart=always
+RestartSec=3
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
