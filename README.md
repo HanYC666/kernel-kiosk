@@ -1,93 +1,105 @@
 # Kernel Kiosk
 
-Kernel Kiosk is a fast terminal-floor arcade game made in Godot 4. Guide the code-drawn Hackrio terminal avatar through a live network grid, collect signal bubbles, and decide whether the recovered Linux command is real before the clock burns down.
+Kernel Kiosk is a Godot 4 platformer where you play as Hackrio, a tiny terminal runner trying to keep a strange network online. Jump across terminal blocks, approach signal bubbles to reveal Linux-command challenges, then launch yourself into the bubble with the right answer before your health disappears.
 
-![Kernel Kiosk command audit gameplay](docs/kernel-kiosk-preview.svg)
+![Kernel Kiosk platformer gameplay preview](docs/kernel-kiosk-preview.png)
 
-## Play
+Built for the Hack Club Stardance WarioWare mission.
 
-Move with **A/D** or the **arrow keys** and jump with **Space**, **W**, or **Up**. Hackrio is a side-view platform runner: use terminal blocks as platforms, touch a signal bubble to reveal its prompt, then jump into the answer bubble.
+## What You Do
 
-There are two minigames:
+- Move with `A` / `D` or the arrow keys.
+- Jump with `Space`, `W`, or Up.
+- Get close to a signal bubble to reveal its challenge.
+- Jump into one of the answer bubbles to make your choice.
 
-- **Command Audit**: classify a command as valid or broken by jumping into a randomized in-world signal bubble.
-- **Flag Forge**: choose the real flag or command fragment that completes a Linux command from randomized platform positions.
+There are three levels. Each one has its own 30-question Linux deck, but a run only picks 10 questions from each deck. That means every game has 30 challenges, while the order and questions can change between runs.
 
-Each run samples **10 unique questions** from each level's 30-question deck, so a campaign contains 30 questions and does not repeat the same sequence every time. Level 1 awards **5 score** per correct answer, Level 2 awards **10**, and Level 3 awards **15**. Every correct answer also restores **3 health**. A wrong answer deducts **2 score** and **5 health**. Health begins at 25, is capped at 25, and reaching zero ends the session. Clear all three levels to receive root access.
+The first level asks whether a command is valid or broken. Later levels ask which flag or command fragment makes a command work. Correct answers add score and restore health; wrong answers cost both. Clear all three levels for the root-access ending, or let health reach zero for the connection-terminated ending.
 
 ## Features
 
-- Original green-terminal arena and Hackrio avatar, drawn at runtime without asset packs.
-- Proximity-only command reveal, followed by physical bubble selection for command audits.
-- Three 30-question difficulty decks; each run selects 10 unique questions from every deck.
-- Firewall-reconfiguration transition effect and progressively narrower, gapped platform routes.
-- Separate score and 25-point health systems, with green/red result flashes and health-based death.
-- Separate original Godot scenes for root-access victory and connection-terminated defeat.
-- Optional public-score submission with player-selected display names.
+- Side-view platforming with gravity, jumping, collisions, and increasingly awkward routes.
+- Green terminal UI, signal bubbles, platforms, and Hackrio drawn directly in Godot code.
+- Three randomized challenge decks with 30 questions per level.
+- Firewall-reconfiguration transition between levels.
+- Separate victory and defeat scenes made in Godot.
+- Optional public rankings with player-chosen display names.
+- A lightweight Go server that stores only the top 50 scores.
 
-## Run the Web Build
+## Quick Start
 
-The game and server live in the same source tree. Godot creates the browser bundle; the Go server serves that bundle and the public scoreboard.
+### Run from source
+
+You need Godot 4.3+, Go 1.23+, and `make`.
 
 ```sh
 GODOT=godot make export-web
 make run
 ```
 
-Open [http://localhost:8009](http://localhost:8009) to play and [http://localhost:8009/rankings.html](http://localhost:8009/rankings.html) to view published scores. The export command requires Godot 4.3+; the server itself only requires Go 1.23+.
+Open [http://localhost:8009](http://localhost:8009). Rankings are available at [http://localhost:8009/rankings.html](http://localhost:8009/rankings.html).
 
-The server binds to `127.0.0.1:8009` by default. For a reverse proxy or LAN deployment, pass an explicit address such as `go run ./cmd/kernel-kiosk -addr :8009`.
+### Use the setup script
 
-### One-command setup
-
-On Unix/Linux systems, the setup script installs missing Godot, Go, and `make` through Homebrew, `apt`, `dnf`, `pacman`, `apk`, or `zypper`. It then installs Godot's matching Web export templates, exports the browser game, tests the server source, and builds a native binary for the current CPU. Linux installs may request `sudo`. Godot's current official template bundle contains all platform templates and can be a large one-time download; interrupted downloads resume on the next setup run:
+On macOS or Linux, the setup script can install missing Go, Godot, and `make`, download the matching Godot web export templates, export the game, test the server, and build a binary for the current computer.
 
 ```sh
 ./setup.sh
 ./bin/kernel-kiosk
 ```
 
-Use `./setup.sh --skip-export` only when `web/index.html` has already been exported.
+Use `./setup.sh --skip-export` only when `web/index.html` already exists.
 
-## Score Privacy
+## Useful Commands
 
-Everything in gameplay runs locally in the browser or desktop client. No player data is transmitted while playing. At the end, players may choose **Publish Score**, enter a public display name, and open a separate rankings page that submits only that name and final score using one GET request. The result screen and play HUD both include **Rankings** controls that open the page in a new tab. Scores are persisted by the included Go server and publicly listed at `/rankings.html`.
+```sh
+make run          # Run the Go server from source
+make test         # Run Go tests
+make build        # Build for this computer
+GODOT=godot make export-web
+make build-all    # Build Linux ARMv6/ARM64/AMD64 and macOS ARM64/AMD64 binaries
+```
 
-## Run locally
+The web export goes into `web/`. It is deliberately kept outside version control because it is generated. The server needs the whole exported `web/` directory beside it when deployed.
 
-1. Install [Godot 4.3 or newer](https://godotengine.org/download/).
-2. Import `project.godot` in Godot.
-3. Press `F6` / `F5` to play.
+## Scores and Privacy
 
-For a lightweight web deployment, run `GODOT=godot make export-web`, then deploy the Go binary with its generated `web/` folder. The renderer is explicitly configured for the compatibility backend, keeping GPU and memory requirements modest for low-end devices.
+Playing the game does not send anything to the server. At the end of a run, the player can choose whether to publish a score. If they choose yes, the game sends only their selected public name and final score in one GET request.
 
-### CPU architecture builds
+The rankings page is read-only. It displays and stores only the top 50 scores in `data/scores.json`. The server validates display names and score ranges, uses atomic score-file writes, and includes request limits and security headers.
+
+## Low-End Deployment
+
+The game runs in the visitor's browser. The Pi only serves static Godot files and handles the optional leaderboard, so it is suitable for lower-powered devices.
+
+For a Raspberry Pi Zero-class machine, build the ARMv6 binary:
 
 ```sh
 make build-all
 ```
 
-This produces Linux ARMv6, Linux ARM64, Linux AMD64, macOS Apple Silicon, and macOS Intel binaries in `bin/`. The Go server has no CGO, native libraries, containers, or architecture-specific dependencies.
+Copy `bin/kernel-kiosk-linux-armv6` to the Pi as `kernel-kiosk`, along with the complete `web/` folder. The included [systemd service](deploy/kernel-kiosk.service) starts the server automatically and restarts it if it stops.
 
-### DietPi systemd service
+The default server binds to `127.0.0.1:8009`. For a LAN server, run it with `-addr :8009`. For Cloudflare Tunnel, keep the loopback address and point the Tunnel hostname at `http://127.0.0.1:8009`.
 
-After copying the ARMv6 binary and the generated `web/` directory to `/root/Hackclub/kernel-kiosk` on DietPi, install and start the included service:
+## Project Layout
 
-```sh
-scp deploy/kernel-kiosk.service root@DietPi:/etc/systemd/system/kernel-kiosk.service
-ssh root@DietPi 'systemctl daemon-reload && systemctl enable --now kernel-kiosk && systemctl status kernel-kiosk'
+```text
+main.gd                     Platforming, rendering, questions, and game flow
+Main.tscn                   Main Godot scene
+WinScene.tscn               Root-access victory scene
+DeathScene.tscn             Connection-terminated defeat scene
+result_scene.gd             Result buttons and optional score publishing
+cmd/kernel-kiosk/           Go web server
+internal/scores/            JSON leaderboard storage and tests
+rankings.html               Read-only public leaderboard
+setup.sh                    Unix/macOS setup helper
+deploy/                     systemd service template
 ```
-
-The service listens on port `8009`, restarts after a failure, and stores scores at `/root/Hackclub/kernel-kiosk/data/scores.json`. Use `journalctl -u kernel-kiosk -f` to follow its logs.
-
-## How It Works
-
-The game is a single Godot scene. `main.gd` draws the grid, player, and bubbles directly with the Canvas API, then tracks proximity using simple distance checks. This keeps the frame work intentionally small: there are no physics bodies, animations, texture atlases, or continuous network calls. Game state is held in client memory and a browser export can be deployed as static files.
-
-The optional scoreboard is intentionally separated from play. The game sends one URL-encoded GET request containing the chosen public name and final score after explicit confirmation. No name, score, or telemetry is sent otherwise. The rankings page is read-only; the server validates names and score bounds, persists only the top 50 scores atomically, has conservative HTTP timeouts, security headers, request logging, and graceful shutdown handling.
 
 ## Assets and Credits
 
-All visual assets are original and generated in `main.gd` with Godot's drawing API: the grid, bubbles, terminal UI, and Hackrio avatar. No external artwork, audio, or asset packs are used.
+All game visuals are original. The terminal grid, platforms, bubbles, UI, and Hackrio avatar are drawn using Godot's Canvas API. No asset packs, stock art, or external game artwork are used.
 
-Built for the Hack Club Stardance WarioWare mission.
+The project uses Godot for the game and Go's standard library for the server.
