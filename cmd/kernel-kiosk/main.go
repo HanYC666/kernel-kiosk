@@ -27,6 +27,8 @@ const (
 	maxPublicScores = 50
 )
 
+var validGames = map[string]bool{"platform": true, "typing": true}
+
 func main() {
 	addr := flag.String("addr", "127.0.0.1:8009", "listen address")
 	webRoot := flag.String("web-root", "web", "Godot web export directory")
@@ -77,10 +79,20 @@ func newHandler(webRoot string, store *scores.Store, logger *slog.Logger) http.H
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		_, _ = w.Write([]byte(`{"status":"ok"}`))
 	})
-	mux.HandleFunc("GET /api/scores", func(w http.ResponseWriter, _ *http.Request) {
-		writeJSON(w, http.StatusOK, store.List())
+	mux.HandleFunc("GET /api/scores", func(w http.ResponseWriter, r *http.Request) {
+		game, ok := requestedGame(r)
+		if !ok {
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "game must be platform or typing"})
+			return
+		}
+		writeJSON(w, http.StatusOK, store.List(game))
 	})
 	mux.HandleFunc("GET /api/scores/submit", func(w http.ResponseWriter, r *http.Request) {
+		game, ok := requestedGame(r)
+		if !ok {
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "game must be platform or typing"})
+			return
+		}
 		name := strings.TrimSpace(r.URL.Query().Get("name"))
 		if len([]rune(name)) == 0 || len([]rune(name)) > maxName {
 			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "name must contain 1-24 characters"})
@@ -97,7 +109,7 @@ func newHandler(webRoot string, store *scores.Store, logger *slog.Logger) http.H
 			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "score must be between -999 and 999"})
 			return
 		}
-		entry, err := store.Add(name, score)
+		entry, err := store.Add(name, score, game)
 		if err != nil {
 			logger.Error("save score", "error", err)
 			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "could not save score"})
@@ -121,6 +133,14 @@ func newHandler(webRoot string, store *scores.Store, logger *slog.Logger) http.H
 		static.ServeHTTP(w, r)
 	}))
 	return withSecurityHeaders(withRequestLog(mux, logger))
+}
+
+func requestedGame(r *http.Request) (string, bool) {
+	game := r.URL.Query().Get("game")
+	if game == "" {
+		game = "platform"
+	}
+	return game, validGames[game]
 }
 
 func writeJSON(w http.ResponseWriter, status int, value any) {

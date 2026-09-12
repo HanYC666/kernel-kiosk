@@ -1,6 +1,6 @@
 # Kernel Kiosk
 
-Kernel Kiosk is a Godot 4 platformer where you play as Hackrio, a tiny terminal runner trying to keep a strange network online. Jump across terminal blocks, approach signal bubbles to reveal Linux-command challenges, then launch yourself into the bubble with the right answer before your health disappears.
+Kernel Kiosk is a Godot 4 collection of Linux-command minigames. Choose either the platform route, where Hackrio jumps through signal bubbles, or the fixed terminal typing drill.
 
 ![Kernel Kiosk platformer gameplay preview](docs/kernel-kiosk-preview.png)
 
@@ -11,7 +11,7 @@ Kernel Kiosk is a Godot 4 platformer where you play as Hackrio, a tiny terminal 
 - Get close to a signal bubble to reveal its challenge.
 - Jump into one of the answer bubbles to make your choice.
 
-There are three levels. Each one has its own 30-question Linux deck, but a run only picks 10 questions from each deck. That means every game has 30 challenges, while the order and questions can change between runs.
+Platform Breach has three movement levels with randomized signal challenges. Typing Terminal has three levels, each with a 50-question Linux deck; a run selects eight exact-input prompts from every deck for 24 questions total.
 
 The first level asks whether a command is valid or broken. Later levels ask which flag or command fragment makes a command work. Correct answers add score and restore health; wrong answers cost both. Clear all three levels for the root-access ending, or let health reach zero for the connection-terminated ending.
 
@@ -19,10 +19,11 @@ The first level asks whether a command is valid or broken. Later levels ask whic
 
 - Side-view platforming with gravity, jumping, collisions, and increasingly awkward routes.
 - Green terminal UI, signal bubbles, platforms, and Hackrio drawn directly in Godot code.
-- Three randomized challenge decks with 30 questions per level.
+- A game selector with Platform Breach and Typing Terminal.
+- Three randomized 50-question typing decks, with eight prompts per level.
 - Firewall-reconfiguration transition between levels.
 - Separate victory and defeat scenes made in Godot.
-- Optional public rankings with player-chosen display names.
+- Separate optional public rankings for each minigame, with player-chosen display names.
 - A lightweight Go server that stores only the top 50 scores.
 
 ## Quick Start
@@ -63,9 +64,9 @@ The web export goes into `web/`. It is deliberately kept outside version control
 
 ## Scores and Privacy
 
-Playing the game does not send anything to the server. At the end of a run, the player can choose whether to publish a score. If they choose yes, the game sends only their selected public name and final score in one GET request.
+Playing the games does not send anything to the server. At the end of a run, the player can choose whether to publish a score. If they choose yes, the game sends only their selected public name, final score, and minigame identifier in one GET request.
 
-The rankings page is read-only. It displays and stores only the top 50 scores in `data/scores.json`. The server validates display names and score ranges, uses atomic score-file writes, and includes request limits and security headers.
+The rankings page is read-only. It displays and stores the top 50 scores for each minigame in `data/scores.json`. The server validates display names and score ranges, uses atomic score-file writes, and includes request limits and security headers.
 
 ## Low-End Deployment
 
@@ -84,7 +85,9 @@ The default server binds to `127.0.0.1:8009`. For a LAN server, run it with `-ad
 ## Project Layout
 
 ```text
-main.gd                     Platforming, rendering, questions, and game flow
+game_select.gd              Minigame selector
+main.gd                     Platform Breach gameplay
+typing_game.gd              Fixed terminal typing gameplay
 Main.tscn                   Main Godot scene
 WinScene.tscn               Root-access victory scene
 DeathScene.tscn             Connection-terminated defeat scene

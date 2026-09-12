@@ -26,9 +26,10 @@
 <body>
   <main>
     <header>
-      <h1>KERNEL KIOSK // RANKINGS</h1>
+      <h1 id="title">KERNEL KIOSK // RANKINGS</h1>
       <a href="/">Return to game</a>
     </header>
+    <nav aria-label="Game rankings"><a id="platform-link" href="/rankings.html?game=platform">Platform breach</a> <a id="typing-link" href="/rankings.html?game=typing">Typing terminal</a></nav>
     <p id="status">Loading public rankings...</p>
     <table aria-label="Public score rankings">
       <thead><tr><th>#</th><th>HANDLE</th><th>SCORE</th></tr></thead>
@@ -38,6 +39,11 @@
   <script>
     const status = document.getElementById('status');
     const rows = document.getElementById('scores');
+    const query = new URLSearchParams(window.location.search);
+    const game = query.get('game') === 'typing' ? 'typing' : 'platform';
+    const gameTitle = game === 'typing' ? 'TYPING TERMINAL' : 'PLATFORM BREACH';
+    document.getElementById('title').textContent = `KERNEL KIOSK // ${gameTitle} RANKINGS`;
+    document.getElementById(`${game}-link`).style.color = '#76ffad';
 
     function setStatus(text, tone = '') {
       status.textContent = text;
@@ -74,7 +80,7 @@
     }
 
     async function loadRankings() {
-      const entries = await fetch('/api/scores', { cache: 'no-store', credentials: 'same-origin' }).then(responseJSON);
+      const entries = await fetch(`/api/scores?game=${game}`, { cache: 'no-store', credentials: 'same-origin' }).then(responseJSON);
       render(entries);
     }
 
@@ -86,7 +92,7 @@
         if (name !== null && score !== null) {
           setStatus('Publishing score...');
           await publish(name, score);
-          window.history.replaceState(null, '', '/rankings.html');
+		  window.history.replaceState(null, '', `/rankings.html?game=${game}`);
           setStatus('Score published to the public rankings.', 'success');
         }
         await loadRankings();
@@ -98,7 +104,7 @@
     }
 
     async function publish(name, score) {
-      const submit = new URLSearchParams({ name, score });
+      const submit = new URLSearchParams({ name, score, game });
       await fetch(`/api/scores/submit?${submit}`, { method: 'GET', cache: 'no-store', credentials: 'same-origin' }).then(responseJSON);
     }
 

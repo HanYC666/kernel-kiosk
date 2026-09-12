@@ -30,7 +30,7 @@ func TestOpenTrimsExistingScoresToMaximum(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := len(store.List()); got != 50 {
+	if got := len(store.List("platform")); got != 50 {
 		t.Fatalf("stored entries = %d, want 50", got)
 	}
 
@@ -44,5 +44,26 @@ func TestOpenTrimsExistingScoresToMaximum(t *testing.T) {
 	}
 	if got := len(saved); got != 50 {
 		t.Fatalf("persisted entries = %d, want 50", got)
+	}
+}
+
+func TestScoresAreScopedToTheirGame(t *testing.T) {
+	store, err := Open(filepath.Join(t.TempDir(), "scores.json"), 50)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.Add("runner", 30, "platform"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.Add("typist", 40, "typing"); err != nil {
+		t.Fatal(err)
+	}
+	platform := store.List("platform")
+	typing := store.List("typing")
+	if len(platform) != 1 || platform[0].Name != "runner" {
+		t.Fatalf("platform scores = %#v", platform)
+	}
+	if len(typing) != 1 || typing[0].Name != "typist" {
+		t.Fatalf("typing scores = %#v", typing)
 	}
 }

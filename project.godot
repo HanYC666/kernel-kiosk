@@ -1,6 +1,6 @@
 [application]
 config/name="Kernel Kiosk"
-run/main_scene="res://Main.tscn"
+run/main_scene="res://GameSelect.tscn"
 config/features=PackedStringArray("4.3")
 
 [autoload]

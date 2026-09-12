@@ -12,6 +12,7 @@ import (
 type Entry struct {
 	Name      string    `json:"name"`
 	Score     int       `json:"score"`
+	Game      string    `json:"game,omitempty"`
 	Submitted time.Time `json:"submitted"`
 }
 
@@ -36,8 +37,10 @@ func Open(path string, maxSize int) (*Store, error) {
 			return nil, err
 		}
 		store.sort()
-		if len(store.entries) > store.maxSize {
-			store.entries = store.entries[:store.maxSize]
+		before := len(store.entries)
+		store.trim("platform")
+		store.trim("typing")
+		if len(store.entries) != before {
 			if err := store.persist(); err != nil {
 				return nil, err
 			}
@@ -46,34 +49,57 @@ func Open(path string, maxSize int) (*Store, error) {
 	return store, nil
 }
 
-func (s *Store) List() []Entry {
+func (s *Store) List(game string) []Entry {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	return append([]Entry(nil), s.entries...)
+	entries := make([]Entry, 0, len(s.entries))
+	for _, entry := range s.entries {
+		if entry.Game == game || (game == "platform" && entry.Game == "") {
+			entries = append(entries, entry)
+		}
+	}
+	return entries
 }
 
-func (s *Store) Add(name string, score int) (Entry, error) {
+func (s *Store) Add(name string, score int, game string) (Entry, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	entry := Entry{Name: name, Score: score, Submitted: time.Now().UTC()}
+	entry := Entry{Name: name, Score: score, Game: game, Submitted: time.Now().UTC()}
 	s.entries = append(s.entries, entry)
-	s.sort()
-	if len(s.entries) > s.maxSize {
-		s.entries = s.entries[:s.maxSize]
-	}
+	s.trim(game)
 	if err := s.persist(); err != nil {
 		return Entry{}, err
 	}
 	return entry, nil
 }
 
-func (s *Store) sort() {
-	sort.SliceStable(s.entries, func(i, j int) bool {
-		if s.entries[i].Score == s.entries[j].Score {
-			return s.entries[i].Submitted.Before(s.entries[j].Submitted)
+func (s *Store) trim(game string) {
+	gameEntries := make([]Entry, 0, len(s.entries))
+	otherEntries := make([]Entry, 0, len(s.entries))
+	for _, entry := range s.entries {
+		if entry.Game == game || (game == "platform" && entry.Game == "") {
+			gameEntries = append(gameEntries, entry)
+		} else {
+			otherEntries = append(otherEntries, entry)
 		}
-		return s.entries[i].Score > s.entries[j].Score
-	})
+	}
+	sort.SliceStable(gameEntries, func(i, j int) bool { return scoreBefore(gameEntries[i], gameEntries[j]) })
+	if len(gameEntries) > s.maxSize {
+		gameEntries = gameEntries[:s.maxSize]
+	}
+	s.entries = append(otherEntries, gameEntries...)
+	s.sort()
+}
+
+func (s *Store) sort() {
+	sort.SliceStable(s.entries, func(i, j int) bool { return scoreBefore(s.entries[i], s.entries[j]) })
+}
+
+func scoreBefore(i, j Entry) bool {
+	if i.Score == j.Score {
+		return i.Submitted.Before(j.Submitted)
+	}
+	return i.Score > j.Score
 }
 
 func (s *Store) persist() error {

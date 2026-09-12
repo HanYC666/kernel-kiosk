@@ -9,6 +9,7 @@ var name_input: LineEdit
 var publish: Button
 var replay: Button
 var rankings: Button
+var score_request: HTTPRequest
 
 func _ready() -> void:
 	build_ui()
@@ -37,7 +38,7 @@ func build_ui() -> void:
 	detail.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	detail.add_theme_font_size_override("font_size", 17)
 	detail.add_theme_color_override("font_color", Color("dcffe7"))
-	detail.text = "The network is stable. You earned %d score points." % Session.final_score if won else "Health reached zero. The kiosk locked your session at %d score points." % Session.final_score
+	detail.text = "The network is stable. You earned %d score points in %s." % [Session.final_score, Session.completed_game_title] if won else "Session terminated. The kiosk locked your %s run at %d score points." % [Session.completed_game_title, Session.final_score]
 	panel.add_child(detail)
 	status = Label.new()
 	status.position = Vector2(48, 191)
@@ -63,7 +64,7 @@ func build_ui() -> void:
 	rankings.pressed.connect(open_rankings)
 	panel.add_child(rankings)
 	replay = make_button("PLAY AGAIN", Vector2(488, 244), Vector2(206, 52))
-	replay.pressed.connect(func(): get_tree().change_scene_to_file("res://Main.tscn"))
+	replay.pressed.connect(func(): get_tree().change_scene_to_file(Session.completed_replay_scene))
 	panel.add_child(replay)
 
 func on_publish_pressed() -> void:
@@ -89,12 +90,33 @@ func submit_score() -> void:
 	if player_name.is_empty():
 		status.text = "Enter a display name before submitting."
 		return
-	navigate_to_rankings("/rankings.html?name=" + player_name.uri_encode() + "&score=" + str(Session.final_score))
-	status.text = "Opening rankings to publish your score..."
+	status.text = "Publishing score..."
 	publish.disabled = true
+	score_request = HTTPRequest.new()
+	add_child(score_request)
+	score_request.request_completed.connect(on_score_request_completed)
+	var endpoint := "/api/scores/submit?game=" + Session.completed_game_id + "&name=" + player_name.uri_encode() + "&score=" + str(Session.final_score)
+	var request_error := score_request.request(api_url(endpoint))
+	if request_error != OK:
+		status.text = "Could not start score publishing. Try again."
+		publish.disabled = false
+		score_request.queue_free()
+
+func on_score_request_completed(result: int, response_code: int, _headers: PackedStringArray, _body: PackedByteArray) -> void:
+	score_request.queue_free()
+	if result == HTTPRequest.RESULT_SUCCESS and response_code == 201:
+		navigate_to_rankings("/rankings.html?game=" + Session.completed_game_id)
+		return
+	status.text = "Score was not published. Check the name and try again."
+	publish.disabled = false
+
+func api_url(path: String) -> String:
+	if OS.has_feature("web"):
+		return str(JavaScriptBridge.get_interface("window").location.origin) + path
+	return "http://127.0.0.1:8009" + path
 
 func open_rankings(query := "") -> void:
-	navigate_to_rankings("/rankings.html" + query)
+	navigate_to_rankings("/rankings.html?game=" + Session.completed_game_id + query)
 
 func navigate_to_rankings(page: String) -> void:
 	if OS.has_feature("web"):

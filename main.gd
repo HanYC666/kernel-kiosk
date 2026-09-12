@@ -50,6 +50,9 @@ var route_anchors: Array[Vector2] = [
 ]
 
 func _ready() -> void:
+	Session.game_id = "platform"
+	Session.game_title = "PLATFORM BREACH"
+	Session.replay_scene = "res://Main.tscn"
 	rng.randomize()
 	level_decks = build_level_decks()
 	for deck in level_decks:
@@ -227,9 +230,9 @@ func spawn_signals() -> void:
 func open_rankings() -> void:
 	if OS.has_feature("web"):
 		var browser_window := JavaScriptBridge.get_interface("window")
-		browser_window.location.assign("/rankings.html")
+		browser_window.location.assign("/rankings.html?game=platform")
 	else:
-		OS.shell_open("http://127.0.0.1:8009/rankings.html")
+		OS.shell_open("http://127.0.0.1:8009/rankings.html?game=platform")
 
 func _physics_process(delta: float) -> void:
 	if not game_active:
@@ -442,6 +445,9 @@ func reactivate_distant_signal() -> void:
 func end_game(won: bool) -> void:
 	game_active = false
 	Session.final_score = score
+	Session.completed_game_id = Session.game_id
+	Session.completed_game_title = Session.game_title
+	Session.completed_replay_scene = Session.replay_scene
 	get_tree().change_scene_to_file("res://WinScene.tscn" if won else "res://DeathScene.tscn")
 
 func update_hud() -> void:
